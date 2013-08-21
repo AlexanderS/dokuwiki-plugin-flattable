@@ -1,7 +1,7 @@
-base   itemtable
-author Olaf Trieschmann
-email  develop@otri.de
-date   2010-11-06
-name   Item Table
-desc   Renders tables in DokuWiki format by using itemlists instead of the Wiki syntax
-url    http://www.dokuwiki.org/plugin:itemtable
+base   flattable
+author Alexander Sulfrian
+email  alexander@sulfrian.net
+date   2013-08-10
+name   Flat Table
+desc   Renders tables in DokuWiki format by using a flat table format instead of the wiki syntax.
+url    https://github.com/AlexanderS/flat-table

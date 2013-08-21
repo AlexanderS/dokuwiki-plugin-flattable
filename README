@@ -1,1 +1,2 @@
-See http://www.dokuwiki.org/plugin:itemtable
+Renders tables in DokuWiki format by using a flat table syntax instead
+of the wiki syntax (very helpful for big tables with a lot of text)

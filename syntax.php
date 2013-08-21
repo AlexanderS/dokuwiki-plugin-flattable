@@ -1,227 +1,277 @@
 <?php
 /**
- * Plugin itemtable: Renders tables in DokuWiki format by using itemlists instead of the Wiki syntax (very helpful for big tables with a lot of text)
+ * Plugin flattable: Renders tables in DokuWiki format by using a flat
+ * table syntax instead of the wiki syntax (very helpful for big tables
+ * with a lot of text)
+ *
+ * This is the Syntax Component of this plugin.
  *
  * @license    GPL 2 (http://www.gnu.org/licenses/gpl.html)
- * @author     Olaf Trieschmann <trieschmann@otri.de>
+ * @author     Alexander Sulfrian <alexander@sulfrian.net>
  *
- * Thanks to Stephen C's plugin "dbtables", which was used as a starting point!
+ * Thanks to Olaf Trieschmann's plugin "itemtables", that was the base
+ * for this plugin.
+ * Thanks to Ashish Kulkarni for the FlatTableMacro for trac wiki, that
+ * provieded the flat table syntax.
  */
 
-// must be run within DokuWiki
 if(!defined('DOKU_INC')) die();
 
-if(!defined('DOKU_PLUGIN')) define('DOKU_PLUGIN',DOKU_INC.'lib/plugins/');
-require_once DOKU_PLUGIN.'syntax.php';
-require_once DOKU_INC.'inc/parser/parser.php';
+require_once DOKU_INC . 'lib/plugins/syntax.php';
+require_once DOKU_INC . 'inc/parser/parser.php';
 require_once DOKU_INC . 'inc/parser/xhtml.php';
 
-/**
- * All DokuWiki plugins to extend the parser/rendering mechanism
- * need to inherit from this class
- */
-class syntax_plugin_itemtable extends DokuWiki_Syntax_Plugin {
+class syntax_plugin_flattable extends DokuWiki_Syntax_Plugin {
 
-    // $options is used for rendering options    
+    // $options is used for rendering options
     public $options=array();
-    
-    function getInfo() {
-        return array('author' => 'Olaf Trieschmann',
-                     'email'  => 'develop@otri.de',
-                     'date'   => '2010-11-06',
-                     'name'   => 'Item Table',
-                     'desc'   => 'Renders tables in DokuWiki format by using itemlists instead of the Wiki syntax',
-                     'url'    => 'https://github.com/otriesch/itemtable/raw/master/itemtable.zip');
+
+    function getType() {
+        return 'substition';
     }
-    function getType() { return 'substition'; }
-    function getSort() { return 32; }
+
+    function getSort() {
+        return 32;
+    }
 
     function connectTo($mode) {
-        $this->Lexer->addEntryPattern('<itemtable *[^>]*>',$mode,'plugin_itemtable');
-    }
- 
-    function postConnect() {
-        $this->Lexer->addExitPattern('</itemtable>','plugin_itemtable');
+        $this->Lexer->addEntryPattern(
+            '<flattable(?:\\s+(?:\\b[^= ]*)=(?:"[^"\\\\]*(?:\\\\.[^"\\\\]*)*"|[^ ]*))*\\s*>(?=.*</flattable>)',
+            $mode,
+            'plugin_flattable');
     }
 
-    /**
-     * Handle the match
-     */
-    function handle($match, $state, $pos, &$handler){
+    function postConnect() {
+        $this->Lexer->addExitPattern(
+            '</flattable>',
+            'plugin_flattable');
+    }
+
+    function handle($match, $state, $pos, &$handler) {
         switch ($state) {
-            case DOKU_LEXER_ENTER : 
-              return array($state, substr($match, 10, -1) );
-              break;
-            case DOKU_LEXER_MATCHED :
-              return array($state,$match);
-              break;
-            case DOKU_LEXER_UNMATCHED :
-              return array($state, $match);
-              break;
-            case DOKU_LEXER_EXIT :
-              return array($state, '');
-              break;
+            case DOKU_LEXER_ENTER:
+                return array($state, $match);
+                break;
+            case DOKU_LEXER_MATCHED:
+                return array($state, $match);
+                break;
+            case DOKU_LEXER_UNMATCHED:
+                return array($state, $match);
+                break;
+            case DOKU_LEXER_EXIT:
+                return array($state, '');
+                break;
         }
         return array();
     }
-     
-    function render_tables($match,$mode,$data) {
-      // $match is the full text we're to consider
-      $raw=explode("\n",$match);
-    
-//    $TableData.=$this->options["test"];  
-//    foreach($this->options as $option) {
-//      $TableData.=$option." ";
-//    }
-//    $TableData.="\n\n\n";
-		
-      // Yes, so draw the heading
-      if (trim($this->options["header"])!=""){
-      	// Draw the Dokuwiki table heading
-      	$TableData.="^".$this->options["header"].substr("^^^^^^^^^^",0,$this->options["cols"]+1)."\n";
-      } else {
-			$TableData.="";
-      }
 
-      // Draw the descriptors of each field
-      $TableData.="^ ";
-      for($ColPos=0;$ColPos<$this->options["cols"];$ColPos++)
-              $TableData.="^".$this->options["__col"][$ColPos]." ";
-      $TableData.="^\n";
-      
-      for($ColPos=0;$ColPos<$this->options["cols"];$ColPos++) {
-  	     $RowElements["__col"][$ColPos]=" ";
-      }
-		$RowCount=0;
-		$CellActive=0;
-		      
-      // Run through each line and decide how to render the text      
-      foreach($raw as $rawline) {
-        //In case we have to read a multiline input for one cell
-        if ($CellActive) {
-			 if (strstr($rawline,$this->options["cell_off"])) {
-				$RowElements["__col"][$CellActive-1].=" ".substr($rawline,0,strpos($rawline,$this->options["cell_off"]));
-				$CellActive=0;
-          } else {
-            $RowElements["__col"][$CellActive-1].=" ".$rawline;
-          }
-        } else {
-	        $CurrentLine=trim($rawline);
-	        if ($CurrentLine!=""){
-	          // Is this row the name of a row?
-	          if (substr($rawline,0,1)==$this->options["thead"]) {
-	            if ($RowCount!=0) {
-				     // Go through each entity and output it
-				     for($ColPos=0;$ColPos<$this->options["cols"];$ColPos++) {
-				  	    $TableData.="|".$RowElements["__col"][$ColPos]."  ";
-				     }
-	              // SHIP IT!
-	              $TableData.="|\n";
-	            }
-	            // Remember the current row name
-	      		$TableData.="|".substr($rawline,1)."  ";
-	      		for($ColPos=0;$ColPos<$this->options["cols"];$ColPos++) {
-	  	     		  $RowElements["__col"][$ColPos]=" ";
-	  	     		}
-					$RowCount++;
-	          } else {
-	            // Split the fields up.
-	            $RowInfo=explode($this->options["fdelim"],$rawline);
-	            if (count($RowInfo)>=2) {
-	      		  for($ColPos=0;$ColPos<$this->options["cols"];$ColPos++) {
-	           		 if ($RowInfo[0]==$this->options["__col"][$ColPos]) {
-							$r=substr($rawline,strlen($RowInfo[0])+1);
-							if (strstr($r,$this->options["cell_on"])) {
-							  $r=substr(strstr($r,$this->options["cell_on"]),strlen($this->options["cell_on"]));
-							  if (strstr($r,$this->options["cell_off"])) {
-							    $r=substr($r,0,strpos($r,$this->options["cell_off"]));
-							  } else {
-							    $CellActive=$ColPos+1;
-							  }
-							} 
-	           		   $RowElements["__col"][$ColPos]=$r;
-	           		 } 
-					  }
-	            }
-	          }
-	        }
-	     }
-	   }
-      // Go through each entity and output it
-   	for($ColPos=0;$ColPos<$this->options["cols"];$ColPos++) {
-  		  $TableData.="|".$RowElements["__col"][$ColPos]."  ";
-      }
-      // SHIP IT!
-      $TableData.="|\n";
-      // Start the HTML table rendering
-      $res="</p><table";
-      if ($this->options["twidth"]!="")
-        $res.=" width='".$this->options["twidth"]."'>";
-      else
-        $res.=">";
-        
-      // Prepare the table information
-      // The option to not render from Dokuwiki to HTML is available
-      if ($this->options["norender"]=="")
-        $td="<td class='dbtables-td_0'>".p_render($mode,p_get_instructions($TableData),$data)."</td>";
-      else
-        $td="<td><pre>".$TableData."</pre></td>";
-     
-      // Draw the table row
-      $res.="\n<tr class='dbtables-tr_0' valign='top'>\n";
-      // Write out the table data
-      $res.=$td."\n";
-      $CurTablePos=$CurTablePos+1;
-      // Close off the HTML-Table
-      $res.="</tr></table><p>";
-      return $res;
-    }
-    
-    function render($mode, &$renderer, $data) {
-      // This will only render in xhtml
-      if($mode == 'xhtml'){
-         list($state, $match) = $data;
-          switch ($state) {
-              // This happens when we first find the <itemtable>
-              case DOKU_LEXER_ENTER :
-                $parmsexp=explode(';',$match);
-                // Set the relevant default values
-                $this->options["fdelim"]="="; // The character used to delimit what goes between fields
-                $this->options["header"]=""; // 
-                $this->options["__col"]=array();
-                $this->options["cell_on"]="<tablecell>";
-                $this->options["cell_off"]="</tablecell>";
-                $this->options["thead"]="_";  // The character used to indicate the table name
-                // $this->options["twidth"]  // Default HTML table width in HTML specifications (IE: 95% - 960px)
-                // $this->options["norender"] -> Assign a value to NOT render from Dokuwiki to HTML
-                
-                // Prepare each option
-//          $this->options["test"]=""; 
-                $this->options["cols"]=0; 
-                foreach($parmsexp as $pexp) {
-                  $p=explode("=",$pexp);
-                  $p[0]=trim($p[0]);
-                  if (substr($p[0],0,1)=="c") {
-                    $pp=explode(",",$p[1]);
-//			$this->options["test"].=" p[0]=".$p[0]." p[1]=".$p[1]." pp[0]=".$pp[0]." pp[1]=".$pp[1]."\\ \n";
-						  $this->options["__col"]=array_merge ($this->options["__col"],$pp);
-                    foreach($pp as $ppexp) {
-                      $this->options["cols"]++;
-						  }                    
-                  } else {
-                    $this->options[$p[0]]=$p[1];
-                  }  
+    function render_tables($match, $mode, $data) {
+        $table = '';
+
+        // draw heading if requested
+        if (trim($this->options['header']) != '') {
+            $table .= '^'. $this->options['header'] . str_repeat('^', count($this->options['__col'])+1) . "\n";
+        }
+
+        // draw the descriptors of each field
+        $table .= '^ ';
+        if ($this->options['key'] !== false) {
+            $table .= $this->options['key'];
+        }
+        $table .= ' ^ ';
+
+        foreach ($this->options['__col'] as $col) {
+            $row[$col] = '';
+
+            if (array_key_exists($col, $this->options['__head'])) {
+                $table .= $this->options['__head'][$col];
+            }
+            else {
+                $table .= $col;
+            }
+
+            $table .= ' ^ ';
+        }
+        $table .= "\n";
+
+
+        $lines = explode("\n", $match);
+        $row_ready = false;
+        $row_key = false;
+        $row = array();
+        $last_col = false;
+        $spaces = false;
+        foreach($lines as $line) {
+            if ($this->options['key'] === false) {
+                // legacy item table syntax
+
+                $line = trim($line);
+                if ($last_col !== false) {
+                    $cell_off = strpos($line, $this->options["cell_off"]);
+                    if ($cell_off !== false) {
+                        $row[$last_col] .= ' ' . substr($line, 0, $cell_off);
+                        $last_col = false;
+                    }
+                    else {
+                        $row[$last_col] .= ' ' . $line;
+                    }
                 }
-                break;
-              // This happens each line between <dbtables> and </dbtables>
-              case DOKU_LEXER_UNMATCHED :
-                // Send to the rendering function
-                $renderer->doc.=$this->render_tables($match,$mode,$data);
-                //$renderer->doc .= $renderer->_xmlEntities($match);
-                break;
-          }
-          return true;
-      }
-      return false;
+                else {
+                    if (strpos($line, $this->options['thead']) === 0) {
+                        // key
+                        $row_ready = substr($line, strlen($this->options['thead']));
+                    }
+                    else {
+                        if (strpos($line, $this->options['fdelim']) === false) {
+                            continue;
+                        }
+
+                        list($key, $value) = explode($this->options['fdelim'], $line, 2);
+
+                        $cell_on = strpos($value, $this->options['cell_on']);
+                        if ($cell_on !== false) {
+                            $value = substr($value, $cell_on + strlen($this->options['cell_on']));
+
+                            $cell_off = strpos($value, $this->options['cell_off']);
+                            if ($cell_off !== false) {
+                                $last_col = false;
+                                $value = substr($value, 0, $cell_off);
+                            }
+                            else {
+                                $last_col = $key;
+                            }
+                        }
+                        else {
+                            $last_col = false;
+                        }
+                        $row[$key] = $value;
+                    }
+                }
+            }
+            else {
+                // flat table syntax
+                if ($line != '' && $line[0] != '#') {
+                    // ignore empty lines and comments
+                    if (preg_match('/^([^\s]+.*)\:\s*$/', $line, $match)) {
+                        // key
+                        $row_ready = $match[1];
+                    }
+                    else if (preg_match('/^(\s*)@([^@\s]+?)\:\s*(.+)?$/', $line, $match)) {
+                        // row
+                        $spaces = $match[1];
+                        $last_col = $match[2];
+                        $row[$last_col] = $match[3];
+                    }
+                    else if ($spaces !== false && ($spaces === '' || strpos($line, $spaces) === 0)) {
+                        // continuation of last cell
+                        $row[$last_col] .= ' ' . substr($line, strlen($spaces));
+                    }
+                }
+            }
+
+            if ($row_ready !== false) {
+                if ($row_key !== false) {
+                    // output the row
+                    $table .= '| ' . $row_key . ' ';
+                    foreach ($this->options['__col'] as $col) {
+                        $table .= '| ';
+                        if (array_key_exists($col, $row)) {
+                            $table .= $row[$col] . ' ';
+                        }
+                    }
+                    $table .= "|\n";
+                }
+
+                // prepare for next row
+                $row_key = $row_ready;
+                $row_ready = false;
+                $row = array();
+            }
+        }
+
+        if ($row_key !== false) {
+            // output last row
+            $table .= '| ' . $row_key . ' ';
+            foreach ($this->options['__col'] as $col) {
+                $table .= '| ';
+                if (array_key_exists($col, $row)) {
+                    $table .= $row[$col] . ' ';
+                }
+            }
+            $table .= "|\n";
+        }
+
+        if ($this->options['norender'] != '') {
+            // display dokuwiki source
+            $table = preg_replace('/^/m', '  ', $table);
+        }
+
+        $output = p_render($mode, p_get_instructions($table), $data);
+        if ($this->options['twidth'] !== false) {
+            $output = "<!-- table-width width='" . $this->options['twidth'] . "' -->\n" . $output;
+        }
+
+        return '</p>' . $output . '<p>';
+    }
+
+    function render($mode, &$renderer, $data) {
+        if ($mode == 'xhtml') {
+            list($state, $match) = $data;
+            switch ($state) {
+                case DOKU_LEXER_ENTER:
+                    // default settings
+                    $this->options['header'] = '';
+                    $this->options['__col'] = array();
+                    $this->options['__head'] = array();
+                    $this->options['cell_on'] = '<tablecell>';
+                    $this->options['cell_off'] = '</tablecell>';
+                    $this->options['fdelim'] = '=';
+                    $this->options['thead'] = '_';
+                    $this->options['twidth'] = false;
+                    $this->options['norender'] = false;
+                    $this->options['key'] = false;
+
+                    // parse attributes
+                    preg_match_all('/(\b[^= ]*)=("[^"\\\\]*(?:\\\\.[^"\\\\]*)*"|[^ ]*)/', $match, $matches, PREG_SET_ORDER);
+                    foreach ($matches as $m) {
+                        $key = trim($m[1]);
+                        $value = $m[2];
+
+                        // unqote the value if nessessary
+                        if (preg_match('/^"(.*)"$/', $value, $match)) {
+                            $value = stripslashes($match[1]);
+                        }
+
+                        if ($key == 'c') {
+                            // this is the itemtable legacy syntax
+                            $cols = explode(',', $value);
+                            $this->options['__col'] = array_merge($this->options['__col'], $cols);
+                        }
+                        else {
+                            if (array_key_exists($key, $this->options)) {
+                                // set value for option
+                                $this->options[$key] = $value;
+                            }
+                            else {
+                                // define column and set or change heading
+                                if (!in_array($key, $this->options['__col'])) {
+                                    $this->options['__col'][] = $key;
+                                }
+
+                                $this->options['__head'][$key] = $value;
+                            }
+                        }
+                    }
+                    break;
+
+                case DOKU_LEXER_UNMATCHED:
+                    $renderer->doc .= $this->render_tables($match, $mode, $data);
+                    break;
+            }
+
+            return true;
+        }
+
+        return false;
     }
 }
