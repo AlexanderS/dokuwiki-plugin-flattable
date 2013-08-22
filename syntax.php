@@ -205,6 +205,15 @@ class syntax_plugin_flattable extends DokuWiki_Syntax_Plugin {
             // display dokuwiki source
             $table = preg_replace('/^/m', '  ', $table);
         }
+        else if (!plugin_isdisabled('sortablejs')) {
+            // automatic enable sortablejs if available
+            $sort = '';
+            if ($this->options['sort'] != false) {
+                $sort = ' ' . $this->options['sort'];
+            }
+
+            $table = '<sortable' . $sort . ">\n" . $table . '</sortable>';
+        }
 
         $output = p_render($mode, p_get_instructions($table), $data);
         if ($this->options['twidth'] !== false) {
@@ -229,6 +238,7 @@ class syntax_plugin_flattable extends DokuWiki_Syntax_Plugin {
                     $this->options['thead'] = '_';
                     $this->options['twidth'] = false;
                     $this->options['norender'] = false;
+                    $this->options['sort'] = false;
                     $this->options['key'] = false;
 
                     // parse attributes
