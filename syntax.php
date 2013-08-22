@@ -23,7 +23,17 @@ require_once DOKU_INC . 'inc/parser/xhtml.php';
 
 class syntax_plugin_flattable extends DokuWiki_Syntax_Plugin {
 
+    private $quoted_string_regex;
+    private $value_regex;
+    private $key_regex;
+
     private $options = array();
+
+    function __construct() {
+        $this->quoted_string_regex = '"[^"\\\\]*(?:\\\\.[^"\\\\]*)*"';
+        $this->value_regex = $this->quoted_string_regex . '|[^ ]*';
+        $this->key_regex = '\\b[^= ]*';
+    }
 
     function getType() {
         return 'substition';
@@ -35,7 +45,9 @@ class syntax_plugin_flattable extends DokuWiki_Syntax_Plugin {
 
     function connectTo($mode) {
         $this->Lexer->addEntryPattern(
-            '<flattable(?:\\s+(?:\\b[^= ]*)=(?:"[^"\\\\]*(?:\\\\.[^"\\\\]*)*"|[^ ]*))*\\s*>(?=.*</flattable>)',
+            // match key=value=default (=default is optional)
+            '<flattable(?:\\s+' . $this->key_regex . '=(?:' . $this->value_regex . ')'.
+                              '(?:=(?:' . $this->value_regex . '))?)*\\s*>(?=.*</flattable>)',
             $mode,
             'plugin_flattable');
     }
@@ -62,6 +74,36 @@ class syntax_plugin_flattable extends DokuWiki_Syntax_Plugin {
                 break;
         }
         return array();
+    }
+
+    private function unquote($value) {
+        if (preg_match('/^"(.*)"$/', $value, $match)) {
+           return stripslashes($match[1]);
+        }
+
+        return $value;
+    }
+
+    private function render_row($key, $values) {
+        if ($key === false) {
+            return '';
+        }
+
+        // output the row
+        $row = "| $key ";
+
+        foreach ($this->options['__col'] as $col) {
+            $row .= '| ';
+            if (array_key_exists($col, $values)) {
+                $row .= $values[$col] . ' ';
+            }
+            else if (array_key_exists($col, $this->options['__defaults'])) {
+                $row .= $this->options['__defaults'][$col] . ' ';
+            }
+        }
+        $row .= "|\n";
+
+        return $row;
     }
 
     private function render_tables($match, $mode, $data) {
@@ -169,17 +211,7 @@ class syntax_plugin_flattable extends DokuWiki_Syntax_Plugin {
             }
 
             if ($row_ready !== false) {
-                if ($row_key !== false) {
-                    // output the row
-                    $table .= '| ' . $row_key . ' ';
-                    foreach ($this->options['__col'] as $col) {
-                        $table .= '| ';
-                        if (array_key_exists($col, $row)) {
-                            $table .= $row[$col] . ' ';
-                        }
-                    }
-                    $table .= "|\n";
-                }
+                $table .= $this->render_row($row_key, $row);
 
                 // prepare for next row
                 $row_key = $row_ready;
@@ -188,17 +220,8 @@ class syntax_plugin_flattable extends DokuWiki_Syntax_Plugin {
             }
         }
 
-        if ($row_key !== false) {
-            // output last row
-            $table .= '| ' . $row_key . ' ';
-            foreach ($this->options['__col'] as $col) {
-                $table .= '| ';
-                if (array_key_exists($col, $row)) {
-                    $table .= $row[$col] . ' ';
-                }
-            }
-            $table .= "|\n";
-        }
+        // output last row
+        $table .= $this->render_row($row_key, $row);
 
         if ($this->options['norender'] != '') {
             // display dokuwiki source
@@ -231,6 +254,7 @@ class syntax_plugin_flattable extends DokuWiki_Syntax_Plugin {
                     $this->options['header'] = '';
                     $this->options['__col'] = array();
                     $this->options['__head'] = array();
+                    $this->options['__default'] = array();
                     $this->options['cell_on'] = '<tablecell>';
                     $this->options['cell_off'] = '</tablecell>';
                     $this->options['fdelim'] = '=';
@@ -241,15 +265,13 @@ class syntax_plugin_flattable extends DokuWiki_Syntax_Plugin {
                     $this->options['key'] = false;
 
                     // parse attributes
-                    preg_match_all('/(\b[^= ]*)=("[^"\\\\]*(?:\\\\.[^"\\\\]*)*"|[^ ]*)/', $match, $matches, PREG_SET_ORDER);
+                    preg_match_all('/(' . $this->key_regex . ')' .           // key
+                                     '=(' . $this->value_regex . ')' .       // value
+                                     '(?:=(' . $this->value_regex . '))?/',  // default (optional)
+                                   $match, $matches, PREG_SET_ORDER);
                     foreach ($matches as $m) {
                         $key = trim($m[1]);
-                        $value = $m[2];
-
-                        // unqote the value if nessessary
-                        if (preg_match('/^"(.*)"$/', $value, $match)) {
-                            $value = stripslashes($match[1]);
-                        }
+                        $value = $this->unquote($m[2]);
 
                         if ($key == 'c') {
                             // this is the itemtable legacy syntax
@@ -257,7 +279,7 @@ class syntax_plugin_flattable extends DokuWiki_Syntax_Plugin {
                             $this->options['__col'] = array_merge($this->options['__col'], $cols);
                         }
                         else {
-                            if (array_key_exists($key, $this->options)) {
+                            if (array_key_exists($key, $this->options) && !is_array($this->options[$key])) {
                                 // set value for option
                                 $this->options[$key] = $value;
                             }
@@ -268,6 +290,10 @@ class syntax_plugin_flattable extends DokuWiki_Syntax_Plugin {
                                 }
 
                                 $this->options['__head'][$key] = $value;
+
+                                if (isset($m[3])) {
+                                    $this->options['__defaults'][$key] = $this->unquote($m[3]);
+                                }
                             }
                         }
                     }
