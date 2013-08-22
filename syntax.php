@@ -23,8 +23,7 @@ require_once DOKU_INC . 'inc/parser/xhtml.php';
 
 class syntax_plugin_flattable extends DokuWiki_Syntax_Plugin {
 
-    // $options is used for rendering options
-    public $options=array();
+    private $options = array();
 
     function getType() {
         return 'substition';
@@ -65,7 +64,7 @@ class syntax_plugin_flattable extends DokuWiki_Syntax_Plugin {
         return array();
     }
 
-    function render_tables($match, $mode, $data) {
+    private function render_tables($match, $mode, $data) {
         $table = '';
 
         // draw heading if requested
