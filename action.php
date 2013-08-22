@@ -29,7 +29,7 @@ class action_plugin_flattable extends DokuWiki_Action_Plugin {
     public function handle_renderer_content_postprocess(Doku_Event &$event, $param) {
         if ($event->data[0] == 'xhtml') {
             $event->data[1] = preg_replace(
-                '/<!-- table-width ([^\n ]+) -->\n(<table\b)/',
+                '/<!-- table-width ([^\n ]+) -->\n([^\n]*?<table\b)/',
                 '$2 $1',
                 $event->data[1]);
         }
