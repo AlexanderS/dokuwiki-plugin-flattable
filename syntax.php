@@ -39,6 +39,10 @@ class syntax_plugin_flattable extends DokuWiki_Syntax_Plugin {
         return 'substition';
     }
 
+    function getPType() {
+        return 'block';
+    }
+
     function getSort() {
         return 32;
     }
@@ -242,7 +246,7 @@ class syntax_plugin_flattable extends DokuWiki_Syntax_Plugin {
             $output = "<!-- table-width width='" . $this->options['twidth'] . "' -->\n" . $output;
         }
 
-        return '</p>' . $output . '<p>';
+        return $output;
     }
 
     function render($mode, &$renderer, $data) {
