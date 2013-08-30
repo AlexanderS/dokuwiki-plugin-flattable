@@ -250,67 +250,65 @@ class syntax_plugin_flattable extends DokuWiki_Syntax_Plugin {
     }
 
     function render($mode, &$renderer, $data) {
-        if ($mode == 'xhtml') {
-            list($state, $match) = $data;
-            switch ($state) {
-                case DOKU_LEXER_ENTER:
-                    // default settings
-                    $this->options['header'] = '';
-                    $this->options['__col'] = array();
-                    $this->options['__head'] = array();
-                    $this->options['__default'] = array();
-                    $this->options['cell_on'] = '<tablecell>';
-                    $this->options['cell_off'] = '</tablecell>';
-                    $this->options['fdelim'] = '=';
-                    $this->options['thead'] = '_';
-                    $this->options['twidth'] = false;
-                    $this->options['norender'] = false;
-                    $this->options['sort'] = false;
-                    $this->options['key'] = false;
+        list($state, $match) = $data;
 
-                    // parse attributes
-                    preg_match_all('/(' . $this->key_regex . ')' .           // key
-                                     '=(' . $this->value_regex . ')' .       // value
-                                     '(?:=(' . $this->value_regex . '))?/',  // default (optional)
-                                   $match, $matches, PREG_SET_ORDER);
-                    foreach ($matches as $m) {
-                        $key = trim($m[1]);
-                        $value = $this->unquote($m[2]);
+        switch ($state) {
+            case DOKU_LEXER_ENTER:
+                // default settings
+                $this->options['header'] = '';
+                $this->options['__col'] = array();
+                $this->options['__head'] = array();
+                $this->options['__default'] = array();
+                $this->options['cell_on'] = '<tablecell>';
+                $this->options['cell_off'] = '</tablecell>';
+                $this->options['fdelim'] = '=';
+                $this->options['thead'] = '_';
+                $this->options['twidth'] = false;
+                $this->options['norender'] = false;
+                $this->options['sort'] = false;
+                $this->options['key'] = false;
 
-                        if ($key == 'c') {
-                            // this is the itemtable legacy syntax
-                            $cols = explode(',', $value);
-                            $this->options['__col'] = array_merge($this->options['__col'], $cols);
+                // parse attributes
+                preg_match_all('/(' . $this->key_regex . ')' .           // key
+                                 '=(' . $this->value_regex . ')' .       // value
+                                 '(?:=(' . $this->value_regex . '))?/',  // default (optional)
+                               $match, $matches, PREG_SET_ORDER);
+
+                foreach ($matches as $m) {
+                    $key = trim($m[1]);
+                    $value = $this->unquote($m[2]);
+
+                    if ($key == 'c') {
+                        // this is the itemtable legacy syntax
+                        $cols = explode(',', $value);
+                        $this->options['__col'] = array_merge($this->options['__col'], $cols);
+                    }
+                    else {
+                        if (array_key_exists($key, $this->options) && !is_array($this->options[$key])) {
+                            // set value for option
+                            $this->options[$key] = $value;
                         }
                         else {
-                            if (array_key_exists($key, $this->options) && !is_array($this->options[$key])) {
-                                // set value for option
-                                $this->options[$key] = $value;
+                            // define column and set or change heading
+                            if (!in_array($key, $this->options['__col'])) {
+                                $this->options['__col'][] = $key;
                             }
-                            else {
-                                // define column and set or change heading
-                                if (!in_array($key, $this->options['__col'])) {
-                                    $this->options['__col'][] = $key;
-                                }
 
-                                $this->options['__head'][$key] = $value;
+                            $this->options['__head'][$key] = $value;
 
-                                if (isset($m[3])) {
-                                    $this->options['__defaults'][$key] = $this->unquote($m[3]);
-                                }
+                            if (isset($m[3])) {
+                                $this->options['__defaults'][$key] = $this->unquote($m[3]);
                             }
                         }
                     }
-                    break;
+                }
+                break;
 
-                case DOKU_LEXER_UNMATCHED:
-                    $renderer->doc .= $this->render_tables($match, $mode, $data);
-                    break;
-            }
-
-            return true;
+            case DOKU_LEXER_UNMATCHED:
+                $renderer->doc .= $this->render_tables($match, $mode, $data);
+                break;
         }
 
-        return false;
+        return true;
     }
 }
