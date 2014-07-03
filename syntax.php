@@ -258,7 +258,7 @@ class syntax_plugin_flattable extends DokuWiki_Syntax_Plugin {
                 $this->options['header'] = '';
                 $this->options['__col'] = array();
                 $this->options['__head'] = array();
-                $this->options['__default'] = array();
+                $this->options['__defaults'] = array();
                 $this->options['cell_on'] = '<tablecell>';
                 $this->options['cell_off'] = '</tablecell>';
                 $this->options['fdelim'] = '=';
