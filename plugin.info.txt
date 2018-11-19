@@ -1,7 +1,7 @@
 base   flattable
 author Alexander Sulfrian
 email  alexander@sulfrian.net
-date   2013-08-10
+date   2018-11-19
 name   Flat Table
 desc   Renders tables in DokuWiki format by using a flat table format instead of the wiki syntax.
 url    https://github.com/AlexanderS/flat-table
