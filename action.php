@@ -19,7 +19,7 @@ require_once DOKU_INC . 'lib/plugins/action.php';
 
 class action_plugin_flattable extends DokuWiki_Action_Plugin {
 
-    public function register(Doku_Event_Handler &$controller) {
+    public function register(Doku_Event_Handler $controller) {
         $controller->register_hook('RENDERER_CONTENT_POSTPROCESS',
                                    'AFTER',
                                    $this,

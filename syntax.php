@@ -62,7 +62,7 @@ class syntax_plugin_flattable extends DokuWiki_Syntax_Plugin {
             'plugin_flattable');
     }
 
-    function handle($match, $state, $pos, &$handler) {
+    function handle($match, $state, $pos, Doku_Handler $handler) {
         switch ($state) {
             case DOKU_LEXER_ENTER:
                 return array($state, $match);
@@ -249,7 +249,7 @@ class syntax_plugin_flattable extends DokuWiki_Syntax_Plugin {
         return $output;
     }
 
-    function render($mode, &$renderer, $data) {
+    function render($mode, Doku_Renderer $renderer, $data) {
         list($state, $match) = $data;
 
         switch ($state) {
